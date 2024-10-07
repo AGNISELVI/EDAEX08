@@ -1,0 +1,84 @@
+install.packages("ggplot2")
+# Load necessary libraries
+library(ggplot2)
+
+# Read the dataset (make sure the path is correct)
+df <- read.csv('admissions.csv')
+View(df)
+# Create jitter plot
+ggplot(df, aes(x = gpa, y = factor(admitted))) +
+  geom_jitter(width = 0.1, height = 0.1, color = 'orange', alpha = 0.6) +
+  labs(x = "GPA", y = "Admission Status", title = "GPA vs Admission Status with Jitter") +
+  theme_minimal()
+
+# Fit logistic regression model(glm means generalized linear model)
+model <- glm(admitted ~ gpa, data = df, family = binomial)
+
+# Summary of the model
+summary(model)
+
+# Calculate odds ratio
+exp(coef(model))
+
+# Predict admission probability for a specific GPA, e.g., 3.5
+new_data <- data.frame(gpa = 3.5)
+predict(model, newdata = new_data, type = "response")
+
+# Create the jitter plot with logistic regression curve
+ggplot(df, aes(x = gpa, y = admitted)) +
+  geom_jitter(width = 0.1, height = 0.05, alpha = 0.6, color = 'blue') +  # Jitter plot
+  stat_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE, color = 'red') +  # Logistic regression curve
+  labs(x = "GPA", y = "Admission Status", title = "GPA vs Admission with Logistic Regression Curve") +
+  theme_minimal()
+
+install.packages("dplyr")
+# Load necessary library
+library(dplyr)
+
+# Summarize data by GPA
+gpa_summary <- df %>%
+  group_by(gpa) %>%
+  summarise(
+    num_students = n(),  # Count the number of students for each GPA
+    num_admitted = sum(admitted == 1),  # Count number of admitted students
+    admission_rate = mean(admitted == 1)  # Proportion of admitted students
+  )
+
+# View the summary table
+print(gpa_summary)
+
+# Plot the admission rates and number of students by GPA
+ggplot(gpa_summary, aes(x = gpa)) +
+  geom_bar(aes(y = num_students), stat = "identity", fill = "lightblue", alpha = 0.7) +
+  geom_line(aes(y = admission_rate * max(num_students), group = 1), color = "red", size = 1.5) +
+  scale_y_continuous(
+    name = "Number of Students",
+    sec.axis = sec_axis(~./max(gpa_summary$num_students), name = "Admission Rate")
+  ) +
+  labs(x = "GPA", title = "Number of Students and Admission Rate by GPA") +
+  theme_minimal()
+
+# Create scatter plot for GPA vs. Admission Rate
+ggplot(gpa_summary, aes(x = gpa, y = admission_rate)) +
+  geom_point(color = "blue", size = 3) +  # Plot the scatter points
+  geom_smooth(method = "loess", se = FALSE, color = "red") +  # Add a smooth trend line
+  labs(x = "GPA", y = "Admission Rate", title = "Relationship between GPA and Admission Rate") +
+  theme_minimal()
+
+# Fit the weighted logistic regression model
+model <- glm(cbind(num_admitted, num_students - num_admitted) ~ gpa, 
+             family = binomial(link = "logit"),
+             weights = num_students, 
+             data = gpa_summary)
+
+# View the model summary
+summary(model)
+
+# Create weighted scatter plot with logistic regression curve
+ggplot(gpa_summary, aes(x = gpa, y = admission_rate)) +
+  geom_point(aes(size = num_students), color = "blue", alpha = 0.6) +  # Weighted scatter points
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE, color = "red") +  # Logistic regression curve
+  labs(x = "GPA", y = "Admission Rate", title = "GPA vs Admission Rate with Weighted Points and Logistic Curve") +
+  theme_minimal() +
+  scale_size_continuous(range = c(1, 10), name = "Number of Students")
+
